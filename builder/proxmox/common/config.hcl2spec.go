@@ -485,6 +485,7 @@ func (*Flatrng0Config) HCL2Spec() map[string]hcldec.Spec {
 type FlattpmConfig struct {
 	TPMStoragePool *string `mapstructure:"tpm_storage_pool" cty:"tpm_storage_pool" hcl:"tpm_storage_pool"`
 	Version        *string `mapstructure:"tpm_version" cty:"tpm_version" hcl:"tpm_version"`
+	StorageFormat  *string `mapstructure:"tpm_storage_format" cty:"tpm_storage_format" hcl:"tpm_storage_format"`
 }
 
 // FlatMapstructure returns a new FlattpmConfig.
@@ -499,8 +500,9 @@ func (*tpmConfig) FlatMapstructure() interface{ HCL2Spec() map[string]hcldec.Spe
 // The decoded values from this spec will then be applied to a FlattpmConfig.
 func (*FlattpmConfig) HCL2Spec() map[string]hcldec.Spec {
 	s := map[string]hcldec.Spec{
-		"tpm_storage_pool": &hcldec.AttrSpec{Name: "tpm_storage_pool", Type: cty.String, Required: false},
-		"tpm_version":      &hcldec.AttrSpec{Name: "tpm_version", Type: cty.String, Required: false},
+		"tpm_storage_pool":   &hcldec.AttrSpec{Name: "tpm_storage_pool", Type: cty.String, Required: false},
+		"tpm_version":        &hcldec.AttrSpec{Name: "tpm_version", Type: cty.String, Required: false},
+		"tpm_storage_format": &hcldec.AttrSpec{Name: "tpm_storage_format", Type: cty.String, Required: false},
 	}
 	return s
 }

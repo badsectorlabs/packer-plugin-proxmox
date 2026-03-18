@@ -768,6 +768,10 @@ func generateProxmoxTpm(tpm tpmConfig) *proxmox.TpmState {
 		Storage: tpm.TPMStoragePool,
 		Version: (*proxmox.TpmVersion)(&tpm.Version),
 	}
+	if tpm.StorageFormat != "" {
+		format := proxmox.QemuDiskFormat(tpm.StorageFormat)
+		dev.Format = &format
+	}
 	return &dev
 }
 

@@ -426,9 +426,11 @@ func TestRng0(t *testing.T) {
 
 func TestTpm(t *testing.T) {
 	TpmTest := []struct {
-		name          string
-		tpm_config    tpmConfig
-		expectFailure bool
+		name               string
+		tpm_config         tpmConfig
+		disks              []diskConfig
+		expectFailure      bool
+		expectedFormat     string
 	}{
 		{
 			name:          "version 1.2, no error",
@@ -437,6 +439,7 @@ func TestTpm(t *testing.T) {
 				TPMStoragePool: "local",
 				Version:        "v1.2",
 			},
+			expectedFormat: "raw",
 		},
 		{
 			name:          "version 2.0, no error",
@@ -445,6 +448,7 @@ func TestTpm(t *testing.T) {
 				TPMStoragePool: "local",
 				Version:        "v2.0",
 			},
+			expectedFormat: "raw",
 		},
 		{
 			name:          "empty storage pool, error",
@@ -462,12 +466,87 @@ func TestTpm(t *testing.T) {
 				Version:        "v6.2",
 			},
 		},
+		{
+			name:          "qcow2 format explicit, no error",
+			expectFailure: false,
+			tpm_config: tpmConfig{
+				TPMStoragePool: "local",
+				Version:        "v2.0",
+				StorageFormat:  "qcow2",
+			},
+			expectedFormat: "qcow2",
+		},
+		{
+			name:          "raw format explicit, no error",
+			expectFailure: false,
+			tpm_config: tpmConfig{
+				TPMStoragePool: "local",
+				Version:        "v2.0",
+				StorageFormat:  "raw",
+			},
+			expectedFormat: "raw",
+		},
+		{
+			name:          "unsupported format, error",
+			expectFailure: true,
+			tpm_config: tpmConfig{
+				TPMStoragePool: "local",
+				Version:        "v2.0",
+				StorageFormat:  "qcow",
+			},
+		},
+		{
+			name:          "invalid format, error",
+			expectFailure: true,
+			tpm_config: tpmConfig{
+				TPMStoragePool: "local",
+				Version:        "v2.0",
+				StorageFormat:  "invalid",
+			},
+		},
+		{
+			name:          "no format, no disks, defaults to raw",
+			expectFailure: false,
+			tpm_config: tpmConfig{
+				TPMStoragePool: "local",
+				Version:        "v2.0",
+			},
+			expectedFormat: "raw",
+		},
+		{
+			name:          "no format, first disk is qcow2, defaults to qcow2",
+			expectFailure: false,
+			tpm_config: tpmConfig{
+				TPMStoragePool: "local",
+				Version:        "v2.0",
+			},
+			disks: []diskConfig{
+				{StoragePool: "local", DiskFormat: "qcow2", Size: "20G"},
+			},
+			expectedFormat: "qcow2",
+		},
+		{
+			name:          "no format, multiple disks, uses first disk format",
+			expectFailure: false,
+			tpm_config: tpmConfig{
+				TPMStoragePool: "local",
+				Version:        "v2.0",
+			},
+			disks: []diskConfig{
+				{StoragePool: "local", DiskFormat: "qcow2", Size: "20G"},
+				{StoragePool: "local", DiskFormat: "raw", Size: "10G"},
+			},
+			expectedFormat: "qcow2",
+		},
 	}
 
 	for _, tt := range TpmTest {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := mandatoryConfig(t)
 			cfg["tpm_config"] = &tt.tpm_config
+			if len(tt.disks) > 0 {
+				cfg["disks"] = tt.disks
+			}
 
 			var c Config
 			_, _, err := c.Prepare(&c, cfg)
@@ -476,10 +555,16 @@ func TestTpm(t *testing.T) {
 					t.Fatalf("unexpected failure to prepare config: %s", err)
 				}
 				t.Logf("got expected failure: %s", err)
+				return
 			}
 
-			if err == nil && tt.expectFailure {
+			if tt.expectFailure {
 				t.Errorf("expected failure, but prepare succeeded")
+				return
+			}
+
+			if tt.expectedFormat != "" && c.TPMConfig.StorageFormat != tt.expectedFormat {
+				t.Errorf("expected tpm_storage_format %q, got %q", tt.expectedFormat, c.TPMConfig.StorageFormat)
 			}
 		})
 	}

@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -418,8 +419,9 @@ type efiConfig struct {
 // ```hcl
 //
 //	tpm_config {
-//	  tpm_storage_pool = "local"
-//	  tpm_version      = "v1.2"
+//	  tpm_storage_pool   = "local"
+//	  tpm_version        = "v1.2"
+//	  tpm_storage_format = "qcow2"
 //	}
 //
 // ```
@@ -428,8 +430,9 @@ type efiConfig struct {
 // ```json
 //
 //	"tpm_config": {
-//	  "tpm_storage_pool": "local",
-//	  "tpm_version": "v1.2"
+//	  "tpm_storage_pool":   "local",
+//	  "tpm_version":        "v1.2",
+//	  "tpm_storage_format": "qcow2"
 //	}
 //
 // ```
@@ -438,6 +441,11 @@ type tpmConfig struct {
 	TPMStoragePool string `mapstructure:"tpm_storage_pool"`
 	// Version of TPM spec. Can be `v1.2` or `v2.0` Defaults to `v2.0`.
 	Version string `mapstructure:"tpm_version"`
+	// The format of the TPM state disk. Can be `raw`, `qcow2` or `vmdk`.
+	// Defaults to the format of the first disk, or `raw` if no disks are
+	// defined. Only applicable on storage backends that support multiple
+	// formats (e.g. `dir`, `nfs`).
+	StorageFormat string `mapstructure:"tpm_storage_format"`
 }
 
 // - `rng0` (object): Configure Random Number Generator via VirtIO.
@@ -924,6 +932,19 @@ func (c *Config) Prepare(upper interface{}, raws ...interface{}) ([]string, []st
 		}
 		if !(c.TPMConfig.Version == "v1.2" || c.TPMConfig.Version == "v2.0") {
 			errs = packersdk.MultiErrorAppend(errs, errors.New("TPM Version must be one of \"v1.2\", \"v2.0\""))
+		}
+		if c.TPMConfig.StorageFormat == "" {
+			if len(c.Disks) > 0 {
+				log.Printf("TPM state device defined, but no tpm_storage_format given, using first disk format '%s'", c.Disks[0].DiskFormat)
+				c.TPMConfig.StorageFormat = c.Disks[0].DiskFormat
+			} else {
+				log.Printf("TPM state device defined, but no tpm_storage_format given, using raw")
+				c.TPMConfig.StorageFormat = "raw"
+			}
+		}
+		validTPMFormats := []string{"raw", "qcow2", "vmdk"}
+		if !slices.Contains(validTPMFormats, c.TPMConfig.StorageFormat) {
+			errs = packersdk.MultiErrorAppend(errs, errors.New("tpm_storage_format must be one of \"raw\", \"qcow2\", \"vmdk\""))
 		}
 	}
 	if c.Rng0 != (rng0Config{}) {
