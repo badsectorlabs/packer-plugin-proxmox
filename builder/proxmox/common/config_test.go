@@ -426,11 +426,11 @@ func TestRng0(t *testing.T) {
 
 func TestTpm(t *testing.T) {
 	TpmTest := []struct {
-		name               string
-		tpm_config         tpmConfig
-		disks              []diskConfig
-		expectFailure      bool
-		expectedFormat     string
+		name           string
+		tpm_config     tpmConfig
+		disks          []diskConfig
+		expectFailure  bool
+		expectedFormat string
 	}{
 		{
 			name:          "version 1.2, no error",
